@@ -20,6 +20,7 @@
 #ifndef TASCAR_OS_H
 #define TASCAR_OS_H
 #include <time.h>
+#include <sys/types.h>
 
 namespace TASCAR {
   /// @brief Convert a string representation of time to a time tm structure.
@@ -66,6 +67,15 @@ namespace TASCAR {
   /// @return this implementation returns resolved_path when the conversion
   ///         was successful, and returns path when not.
   const char* realpath(const char* path, char* resolved_path);
+
+  /// @brief Spawn a subprocess and return its process ID
+  /// This function is not implemented for Windows.
+  /// @param command Command to be executed
+  /// @param shell Launch command using a shell (true) or directly
+  /// @param relaunch Relaunch the command when subprocess ended
+  /// @return Process ID
+  pid_t system(const char* command, bool shell);
+
 } // namespace TASCAR
 
 #endif

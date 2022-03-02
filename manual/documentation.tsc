@@ -30,7 +30,7 @@
 	  <metronome/>
 	  <noise/>
 	  <onsetdetector/>
-	  <openmha plugin="identity" config=""/>
+	  <!--<openmha plugin="identity" config=""/>-->
 	  <pink/>
 	  <pulse/>
 	  <sine/>
@@ -94,6 +94,12 @@
     <datalogging/>
     <oscrelay/>
     <oscjacktime/>
+    <waitforlslstream/>
+    <waitforjackport/>
+    <epicycles/>
+    <midicc2osc controllers="0/1"/>
+    <route/>
+    <ovheadtracker/>
   </modules>
   <connect src="a" dest="b"/>
   <range/>

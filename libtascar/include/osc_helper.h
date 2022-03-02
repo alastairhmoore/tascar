@@ -36,6 +36,8 @@
 #include <string>
 #include <vector>
 
+typedef std::string(strcnvrt_t)(void*);
+
 namespace TASCAR {
 
   /// OSC server
@@ -45,6 +47,22 @@ namespace TASCAR {
     public:
       std::string path;
       std::string typespec;
+      bool readable;
+      std::string rangehint;
+      std::string comment;
+    };
+    class data_element_t {
+    public:
+      data_element_t(const std::string& p, void* ptr_, strcnvrt_t* cnv_,
+                     const std::string& type_);
+      data_element_t();
+      void* ptr;
+      strcnvrt_t* cnv;
+      std::string path;
+      std::string name;
+      std::string prefix;
+      std::string type;
+      std::string getstr() const { return cnv(ptr); };
     };
     osc_server_t(const std::string& multicast, const std::string& port,
                  const std::string& proto, bool verbose = true);
@@ -53,18 +71,41 @@ namespace TASCAR {
     const std::string& get_prefix() const;
     /**
        \brief Register a method in the OSC server
-       \param path OSC path (a prefix may be added internally, see \ref
-       set_prefix() ) \param typespec OSC types, a string consisting of the
-       characters f(loat) d(ouble) i(nteger) s(tring) \param h Method handler
+
+       \param path OSC path (a prefix may be added internally, see
+       \ref set_prefix() )
+
+       \param typespec OSC types, a string consisting of the
+       characters f(loat) d(ouble) i(nteger) s(tring)
+
+       \param h Method handler
+
        \param user_data Pointer to user data
+
+       \param visible Show method in variable list
+
+       \param readable Indicate that a <path>/get method will be
+       provided to read the value
+
+       \param rangehint Range hint in the form [min,max], or [min,max[
+       or ]min,max] or ]min,max[. Bool types use "bool", and string
+       types "string" to indicate the range. The range hint is only
+       used for visualization and does not imply an out-of-bounds
+       checking.
+
+       \param comment Help comment
      */
     void add_method(const std::string& path, const char* typespec,
-                    lo_method_handler h, void* user_data);
+                    lo_method_handler h, void* user_data, bool visible = true,
+                    bool readable = false, const std::string& rangehint = "",
+                    const std::string& comment = "");
     /** \brief Register a double variable for OSC access
         \param path OSC path
         \param data Pointer to data
      */
-    void add_double(const std::string& path, double* data);
+    void add_double(const std::string& path, double* data,
+                    const std::string& range = "",
+                    const std::string& comment = "");
     /** \brief Register a double variable for OSC access, convert from dB values
 
         In coming messages will be converted from dB to linear representation.
@@ -72,7 +113,9 @@ namespace TASCAR {
         \param path OSC path
         \param data Pointer to data
      */
-    void add_double_db(const std::string& path, double* data);
+    void add_double_db(const std::string& path, double* data,
+                       const std::string& range = "[-40,10]",
+                       const std::string& comment = "");
     /** \brief Register a double variable for OSC access, convert from dB SPL
        values
 
@@ -82,7 +125,9 @@ namespace TASCAR {
         \param path OSC path
         \param data Pointer to data
      */
-    void add_double_dbspl(const std::string& path, double* data);
+    void add_double_dbspl(const std::string& path, double* data,
+                          const std::string& range = "[0,120]",
+                          const std::string& comment = "");
     /** \brief Register a double variable for OSC access, convert from degree
        values
 
@@ -91,12 +136,16 @@ namespace TASCAR {
         \param path OSC path
         \param data Pointer to data
      */
-    void add_double_degree(const std::string& path, double* data);
+    void add_double_degree(const std::string& path, double* data,
+                           const std::string& range = "[0,360]",
+                           const std::string& comment = "");
     /** \brief Register a float variable for OSC access
         \param path OSC path
         \param data Pointer to data
      */
-    void add_float(const std::string& path, float* data);
+    void add_float(const std::string& path, float* data,
+                   const std::string& range = "",
+                   const std::string& comment = "");
     /** \brief Register a float variable for OSC access, convert from dB values
 
         In coming messages will be converted from dB to linear representation.
@@ -104,8 +153,12 @@ namespace TASCAR {
         \param path OSC path
         \param data Pointer to data
      */
-    void add_float_db(const std::string& path, float* data);
-    void add_float_dbspl(const std::string& path, float* data);
+    void add_float_db(const std::string& path, float* data,
+                      const std::string& range = "[-40,10]",
+                      const std::string& comment = "");
+    void add_float_dbspl(const std::string& path, float* data,
+                         const std::string& range = "[0,120]",
+                         const std::string& comment = "");
     /** \brief Register a float variable for OSC access, convert from degree
        values
 
@@ -114,7 +167,9 @@ namespace TASCAR {
         \param path OSC path
         \param data Pointer to data
      */
-    void add_float_degree(const std::string& path, float* data);
+    void add_float_degree(const std::string& path, float* data,
+                          const std::string& range = "[0,360]",
+                          const std::string& comment = "");
     /** \brief Register a vector of floats variable for OSC access
 
         The dimension of the vector specifies the length of the
@@ -125,7 +180,9 @@ namespace TASCAR {
         \param path OSC path
         \param data Pointer to data
      */
-    void add_vector_float(const std::string& path, std::vector<float>* data);
+    void add_vector_float(const std::string& path, std::vector<float>* data,
+                          const std::string& range = "",
+                          const std::string& comment = "");
     /** \brief Register a vector of doubles variable for OSC access
 
         The dimension of the vector specifies the length of the
@@ -136,7 +193,9 @@ namespace TASCAR {
         \param path OSC path
         \param data Pointer to data
      */
-    void add_vector_double(const std::string& path, std::vector<double>* data);
+    void add_vector_double(const std::string& path, std::vector<double>* data,
+                           const std::string& range = "",
+                           const std::string& comment = "");
     /** \brief Register a vector of floats variable for OSC access as dB SPL
 
         The dimension of the vector specifies the length of the
@@ -148,8 +207,11 @@ namespace TASCAR {
         \param data Pointer to data
      */
     void add_vector_float_dbspl(const std::string& path,
-                                std::vector<float>* data);
-    /** \brief Register a vector of floats variable for OSC access as dB (e.g. for gains)
+                                std::vector<float>* data,
+                                const std::string& range = "[0,120]",
+                                const std::string& comment = "");
+    /** \brief Register a vector of floats variable for OSC access as dB (e.g.
+       for gains)
 
         The dimension of the vector specifies the length of the
         message. Sending a message of different size will not have any
@@ -159,17 +221,27 @@ namespace TASCAR {
         \param path OSC path
         \param data Pointer to data
      */
-    void add_vector_float_db(const std::string& path,
-                                std::vector<float>* data);
-    void add_bool_true(const std::string& path, bool* data);
-    void add_bool_false(const std::string& path, bool* data);
-    void add_bool(const std::string& path, bool* data);
-    void add_int(const std::string& path, int32_t* data);
-    void add_uint(const std::string& path, uint32_t* data);
-    void add_string(const std::string& path, std::string* data);
+    void add_vector_float_db(const std::string& path, std::vector<float>* data,
+                             const std::string& range = "[-40,10]",
+                             const std::string& comment = "");
+    void add_bool_true(const std::string& path, bool* data,
+                       const std::string& comment = "");
+    void add_bool_false(const std::string& path, bool* data,
+                        const std::string& comment = "");
+    void add_bool(const std::string& path, bool* data,
+                  const std::string& comment = "");
+    void add_int(const std::string& path, int32_t* data,
+                 const std::string& range = "",
+                 const std::string& comment = "");
+    void add_uint(const std::string& path, uint32_t* data,
+                  const std::string& range = "",
+                  const std::string& comment = "");
+    void add_string(const std::string& path, std::string* data,
+                    const std::string& comment = "");
     void activate();
     void deactivate();
     std::string list_variables() const;
+    std::map<std::string, descriptor_t> get_variable_map() const;
     int dispatch_data(void* data, size_t size);
     int dispatch_data_message(const char* path, lo_message m);
     int get_srv_port() const { return lo_server_thread_get_port(lost); };
@@ -177,14 +249,34 @@ namespace TASCAR {
     const std::string osc_srv_addr;
     const std::string osc_srv_port;
     const std::string& get_srv_url() const { return osc_srv_url; };
+    void send_variable_list(const std::string& url, const std::string& path,
+                            const std::string& prefix = "") const;
+    /**
+       @brief Return list of OSC variables with their current values
+       as json expression
+
+
+       @param prefix Optionally return only those variables with the
+       path beginning with prefix
+       @param asstring Return variable values as strings (default)
+       @return json expression
+     */
+    std::string get_vars_as_json(std::string prefix = "",
+                                 bool asstring = true) const;
 
   private:
+    std::string get_vars_as_json_rg(
+        std::string prefix,
+        std::map<std::string, data_element_t>::const_iterator& ibegin,
+        std::map<std::string, data_element_t>::const_iterator iend,
+        bool asstring) const;
     std::string osc_srv_url;
     std::string prefix;
     lo_server_thread lost;
     bool initialized;
     bool isactive;
     bool verbose;
+    std::map<std::string, data_element_t> datamap;
   };
 
   class msg_t : public TASCAR::xml_element_t {

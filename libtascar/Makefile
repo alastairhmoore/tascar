@@ -26,6 +26,7 @@ OBJECTS = licensehandler.o audiostates.o coordinates.o audiochunks.o	\
 
 ifneq ($(OS),Windows_NT)
 UNAME_S := $(shell uname -s)
+OBJECTS += spawn_process.o
 ifeq ($(UNAME_S),Linux)
   OBJECTS +=  alsamidicc.o
 endif

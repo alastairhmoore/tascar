@@ -164,6 +164,9 @@ namespace TASCAR {
   std::string config(const std::string&, const std::string&);
   void config_forceoverwrite(const std::string&, const std::string&);
 
+  void set_libdir(const std::string&);
+  const std::string& get_libdir();
+
   class xml_element_t {
   public:
     xml_element_t(const tsccfg::node_t&);
@@ -257,8 +260,8 @@ namespace TASCAR {
     tsccfg::node_t e;
     std::vector<std::string> get_unused_attributes() const;
     virtual void validate_attributes(std::string&) const;
-    size_t hash(const std::vector<std::string>& attributes,
-                bool test_children = false) const;
+    uint32_t hash(const std::vector<std::string>& attributes,
+                  bool test_children = false) const;
     std::vector<std::string> get_attributes() const;
     tsccfg::node_t& operator()() { return e; };
 
@@ -268,11 +271,17 @@ namespace TASCAR {
   std::string env_expand(std::string s);
 
   std::vector<TASCAR::pos_t> str2vecpos(const std::string& s);
-  std::vector<std::string> str2vecstr(const std::string& s);
+
+  /** Split a string into tokens at spaces.
+   *
+   * A quoted string can include spaces. Single and double quotes are
+   * accepted. Quotes (of other type) within quotes are passed trough.
+   */
+  std::vector<std::string> str2vecstr(const std::string& s, const std::string& delim = " \t");
   std::string vecstr2str(const std::vector<std::string>& s);
   std::vector<double> str2vecdouble(const std::string& s);
   std::vector<float> str2vecfloat(const std::string& s);
-  std::vector<int32_t> str2vecint(const std::string& s);
+  std::vector<int32_t> str2vecint(const std::string& s, const std::string& delim = " \t");
 
   class xml_doc_t {
   public:

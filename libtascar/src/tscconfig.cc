@@ -38,6 +38,18 @@ public:
 
 static xml_init_t xercesc_init;
 
+static std::string tascar_libdir;
+
+void TASCAR::set_libdir(const std::string& s)
+{
+  tascar_libdir = s;
+}
+
+const std::string& TASCAR::get_libdir()
+{
+  return tascar_libdir;
+}
+
 std::basic_string<XMLCh> str2wstr(const char* text)
 {
   XMLCh* resarr(xercesc::XMLString::transcode(text));
@@ -428,8 +440,24 @@ void tsccfg::node_get_and_register_attribute(tsccfg::node_t& e,
     tsccfg::node_set_attribute(e, name, value);
 }
 
-size_t TASCAR::xml_element_t::hash(const std::vector<std::string>& attributes,
-                                   bool test_children) const
+uint32_t CRC32(const char* data, size_t data_length)
+{
+  uint32_t crc = 0xFFFFFFFF;
+  for(size_t i = 0; i < data_length; ++i) {
+    char byte = data[i];
+    crc = crc ^ byte;
+    size_t j = 8;
+    while(j) {
+      --j;
+      uint32_t mask = -(crc & 1);
+      crc = (crc >> 1) ^ (0xEDB88320 & mask);
+    }
+  }
+  return ~crc;
+}
+
+uint32_t TASCAR::xml_element_t::hash(const std::vector<std::string>& attributes,
+                                     bool test_children) const
 {
   std::string v;
   for(auto& attr : attributes)
@@ -438,8 +466,9 @@ size_t TASCAR::xml_element_t::hash(const std::vector<std::string>& attributes,
     for(auto& sne : tsccfg::node_get_children(e))
       for(auto& attr : attributes)
         v += tsccfg::node_get_attribute_value(sne, attr);
-  std::hash<std::string> hash_fn;
-  return hash_fn(v);
+  // std::hash<std::string> hash_fn;
+  // return hash_fn(v);
+  return CRC32(v.c_str(), v.size());
 }
 
 std::string TASCAR::to_string(const TASCAR::pos_t& x)
@@ -1629,31 +1658,48 @@ std::vector<float> TASCAR::str2vecfloat(const std::string& s)
   return value;
 }
 
-std::vector<int32_t> TASCAR::str2vecint(const std::string& s)
+std::vector<int32_t> TASCAR::str2vecint(const std::string& s,
+                                        const std::string& delim)
 {
   std::vector<int32_t> value;
   if(!s.empty()) {
-    std::stringstream ptxt(s);
-    while(ptxt.good()) {
-      double p;
-      ptxt >> p;
-      value.push_back(p);
-    }
+    auto vstr = TASCAR::str2vecstr(s, delim);
+    for(auto s : vstr)
+      value.push_back(atoi(s.c_str()));
   }
   return value;
 }
 
-std::vector<std::string> TASCAR::str2vecstr(const std::string& s)
+std::vector<std::string> TASCAR::str2vecstr(const std::string& s,
+                                            const std::string& delim)
 {
   std::vector<std::string> value;
-  if(!s.empty()) {
-    std::stringstream ptxt(s);
-    while(ptxt.good()) {
-      std::string p;
-      ptxt >> p;
-      value.push_back(p);
+  std::string tok;
+  int mode = 0;
+  bool wasquoted = false;
+  for(auto c : s) {
+    if((mode == 0) && (delim.find(c) != std::string::npos)) {
+      //(c == ' ') || (c == '\t'))) {
+      if(tok.size() || wasquoted)
+        value.push_back(tok);
+      tok.clear();
+      wasquoted = false;
+    } else if((mode == 0) && (c == '\'')) {
+      wasquoted = true;
+      mode = 1;
+    } else if((mode == 1) && (c == '\'')) {
+      mode = 0;
+    } else if((mode == 0) && (c == '"')) {
+      wasquoted = true;
+      mode = 2;
+    } else if((mode == 2) && (c == '"')) {
+      mode = 0;
+    } else {
+      tok += c;
     }
   }
+  if(tok.size())
+    value.push_back(tok);
   return value;
 }
 
@@ -1663,7 +1709,10 @@ std::string TASCAR::vecstr2str(const std::vector<std::string>& s)
   for(auto it = s.begin(); it != s.end(); ++it) {
     if(it != s.begin())
       rv += " ";
-    rv += *it;
+    if(it->find(' ') != std::string::npos)
+      rv += "'" + *it + "'";
+    else
+      rv += *it;
   }
   return rv;
 }

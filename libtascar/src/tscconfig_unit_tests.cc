@@ -237,6 +237,64 @@ TEST(tostring,levelmeter)
   EXPECT_EQ("bandpass",TASCAR::to_string(TASCAR::levelmeter::bandpass));
 }
 
+TEST(strcnv, str2vecstr)
+{
+  EXPECT_EQ(std::vector<std::string>({"abc"}), TASCAR::str2vecstr("abc"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def"}),
+            TASCAR::str2vecstr("abc def"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def"}),
+            TASCAR::str2vecstr(" abc def"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def"}),
+            TASCAR::str2vecstr("abc def "));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def"}),
+            TASCAR::str2vecstr("abc  def"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def"}),
+            TASCAR::str2vecstr("abc \t def"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "", "def"}),
+            TASCAR::str2vecstr("abc '' def"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def"}),
+            TASCAR::str2vecstr("'abc' 'def'"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def", "g"}),
+            TASCAR::str2vecstr("abc  def g"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def g"}),
+            TASCAR::str2vecstr("abc  'def g'"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def g"}),
+            TASCAR::str2vecstr("abc  \"def g\""));
+  EXPECT_EQ(std::vector<std::string>({"abc", "xdef g"}),
+            TASCAR::str2vecstr("abc x'def g'"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def g", "xy z"}),
+            TASCAR::str2vecstr("abc  'def g' 'xy z'"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def g", "xy \"!!\" z"}),
+            TASCAR::str2vecstr("abc  'def g' 'xy \"!!\" z'"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def g"}),
+            TASCAR::str2vecstr("abc  'def g"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def \"x y\" g"}),
+            TASCAR::str2vecstr("abc 'def \"x y\" g'"));
+  EXPECT_EQ(std::vector<std::string>({"abc", "def \"x y\" g"}),
+            TASCAR::str2vecstr("abc |'def \"x y\" g'"," |"));
+}
+
+TEST(strcnv, vecstr2str)
+{
+  EXPECT_EQ("abc", TASCAR::vecstr2str({"abc"}));
+  EXPECT_EQ("abc def", TASCAR::vecstr2str({"abc", "def"}));
+  EXPECT_EQ("abc def g", TASCAR::vecstr2str({"abc", "def", "g"}));
+  EXPECT_EQ("abc 'def g'", TASCAR::vecstr2str({"abc", "def g"}));
+  EXPECT_EQ("abc 'def g' 'xy z'", TASCAR::vecstr2str({"abc", "def g", "xy z"}));
+}
+
+TEST(strcnv, str2vecint)
+{
+  EXPECT_EQ(std::vector<int32_t>({1, 2, 3}), TASCAR::str2vecint("1 2 3"));
+  EXPECT_EQ(std::vector<int32_t>({1, 2, 3, 1}), TASCAR::str2vecint("1 2 3 1"));
+  EXPECT_EQ(std::vector<int32_t>({1, 2, 3, 1}),
+            TASCAR::str2vecint("1-2-3-1", "-"));
+  EXPECT_EQ(std::vector<int32_t>({1, -2, 3, 1}),
+            TASCAR::str2vecint("1,-2, 3,1", ","));
+  EXPECT_EQ(std::vector<int32_t>({1, 3, 1}),
+            TASCAR::str2vecint("1 -2,3,1", ","));
+}
+
 // Local Variables:
 // compile-command: "make -C ../.. unit-tests"
 // coding: utf-8-unix
