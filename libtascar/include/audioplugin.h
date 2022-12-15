@@ -31,6 +31,7 @@
 #include "tascarplugin.h"
 #include "licensehandler.h"
 #include "osc_helper.h"
+#include "tictoctimer.h"
 
 namespace TASCAR {
 

@@ -3,13 +3,40 @@
 The module {\em glabsensors} provides an interface to error reporting
 in sensor drivers, and it can load drivers for various sensors.
 
-\begin{tscattributes}
-\indattr{x}, \indattr{y}, \indattr{w}, \indattr{h}       & Window position and size \\
-\indattr{ontop}   & Create a window which stays on top                    \\
-\end{tscattributes}
+\begin{snugshade}
+{\footnotesize
+\label{attrtab:glabsensors}
+Attributes of element {\bf glabsensors}\nopagebreak
 
-Currently, the sensors {\em trackir}, {\em eog}, {\em emergency}, {\em jackstatus} and
-{\em smiley} are supported.
+\begin{tabularx}{\textwidth}{lXl}
+\hline
+name & description (type, unit) & def.\\
+\hline
+\hline
+\indattr{ontop} & Keep window on top of other windows (bool) & true\\
+\hline
+\indattr{url\_critical} & OSC URL to send critical messages to (string) & \\
+\hline
+\indattr{url\_warning} & OSC URL to send warning messages to (string) & \\
+\hline
+\indattr{x} & Screen x position (uint32, px) & 0\\
+\hline
+\indattr{y} & Screen y position (uint32, px) & 0\\
+\hline
+\indattr{w} & Window width (uint32, px) & 320\\
+\hline
+\indattr{h} & Window height (uint32, px) & 1080\\
+\hline
+\end{tabularx}
+}
+\end{snugshade}
+%%\begin{tscattributes}
+%%\indattr{x}, \indattr{y}, \indattr{w}, \indattr{h}       & Window position and size \\
+%%\indattr{ontop}   & Create a window which stays on top                    \\
+%%\end{tscattributes}
+
+%Currently, the sensors {\em trackir}, {\em eog}, {\em emergency}, {\em jackstatus}, {\em qualisys} and
+%{\em smiley} are supported.
 
 The {\bf trackir} sensor (optical marker tracking) supports these
 attributes:
@@ -84,12 +111,39 @@ The LSL output stream contains one channel.
 
 The {\bf emergency} sensor reacts on continuous OSC messages on path {\tt /noemergency}, and
 executes a command when no OSC message arrives within a given timeout.
-\begin{tscattributes}
-\indattr{timeout}     & Timeout in seconds after which the command will be executed.            \\
-\indattr{startlock}   & Time to wait before activation, in seconds.                             \\
-\indattr{on\_timeout} & System command to be executed upon a timeout event.                     \\
-\indattr{on\_alive}   & System command to be executed if the incoming messages are active again \\
-\end{tscattributes}
+\begin{snugshade}
+{\footnotesize
+\label{attrtab:emergency}
+Attributes of element {\bf emergency}\nopagebreak
+
+\begin{tabularx}{\textwidth}{lXl}
+\hline
+name & description (type, unit) & def.\\
+\hline
+\hline
+\indattr{alivetimeout} & Timeout after which the sensor is seen as not alive (double, s) & 1\\
+\hline
+\indattr{name} & Module name (string) & emergency\\
+\hline
+\indattr{on\_alive} & Command to be executed when sensor is alive again (string) & \\
+\hline
+\indattr{on\_timeout} & Command to be executed on timeout (string) & \\
+\hline
+\indattr{path} & OSC path on which messages are arriving (string) & /noemergency\\
+\hline
+\indattr{startlock} & Lock detecting at start for this amount of time (double, s) & 5\\
+\hline
+\indattr{timeout} & Timeout after which an emergency is detected (double, s) & 1\\
+\hline
+\end{tabularx}
+}
+\end{snugshade}
+%\begin{tscattributes}
+%\indattr{timeout}     & Timeout in seconds after which the command will be executed.            \\
+%\indattr{startlock}   & Time to wait before activation, in seconds.                             \\
+%\indattr{on\_timeout} & System command to be executed upon a timeout event.                     \\
+%\indattr{on\_alive}   & System command to be executed if the incoming messages are active again \\
+%\end{tscattributes}
 
 \label{sec:espheadtracker}For the custom-made ESP-based combined head tracking and EOG
 amplifier of the Gesture Lab, the module {\bf espheadtracker} was
@@ -110,6 +164,35 @@ load is above the threshold.
 \indattr{maxxrunfreq}  & Critical average xrun frequency threshold in Hz (default: 0.1)   \\
 \indattr{oncritical}   & Shell command to be executed when critical state is reached      \\
 \end{tscattributes}
+
+The {\bf qualisys}\index{Qualisys Track
+Manager}\index{qualisys}\index{QTM}\index{glabsensor (qualisys)} is an
+interface between the OSC interface of the commercial QTM software by
+Qualisys and \tascar{}. It creates an LSL stream and optional OSC
+output for each rigid object tracked by QTM. The attributes are:
+
+
+\begin{snugshade}
+{\footnotesize
+\label{attrtab:qualisys}
+\begin{tabularx}{\textwidth}{lXl}
+\hline
+name & description (type, unit) & def.\\
+\hline
+\hline
+\indattr{dataprefix} & OSC path prefix, will be followed by slash + rigid names (string) & \\
+\hline
+\indattr{dataurl} & OSC URL where data is sent to (or empty for no OSC sending) (string) & \\
+\hline
+\indattr{qtmurl} & Qualisys Track Manager URL of USC interface (string) & {\tiny osc.udp://localhost:22225/}\\
+\hline
+\indattr{timeout} & Timeout (double, s) & 1\\
+\hline
+\indattr{uselsl} & Create LSL output stream (bool) & true\\
+\hline
+\end{tabularx}
+}
+\end{snugshade}
 
 
 The {\bf smiley} sensor is used for testing and learning only. It has no configurable attributes.

@@ -374,7 +374,8 @@ namespace TASCAR {
     std::vector<float> optim_response(size_t numflt, float maxq,
                                       const std::vector<float>& vF,
                                       const std::vector<float>& vG, float fs,
-                                      size_t numiter = 1000);
+                                      size_t numiter = 1000,
+                                      bool use_nelder_mead = true);
     /**
        @brief Return gain response in dB
        @param f Frequencies in Hz
@@ -437,6 +438,14 @@ namespace TASCAR {
     std::vector<float> flt_g;
     std::vector<float> flt_q;
   };
+
+  std::vector<float> rflt2alpha(float reflectivity, float damping, float fs,
+                                const std::vector<float>& freq);
+
+  int alpha2rflt(float& reflectivity, float& damping,
+                 const std::vector<float>& alpha,
+                 const std::vector<float>& freq, float fs,
+                 uint32_t numiter = 2000u);
 
 } // namespace TASCAR
 

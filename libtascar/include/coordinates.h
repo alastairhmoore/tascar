@@ -66,6 +66,13 @@ template <class T> void make_friendly_number_limited(T& x)
 
 namespace TASCAR {
 
+  inline bool is_denormal(const double& a) { return !((a < 1.0) || (a > 0.0)); }
+
+  inline bool is_denormal(const float& a)
+  {
+    return !((a < 1.0f) || (a > 0.0f));
+  }
+
   /// Generate random number between 0 and 1
   double drand();
 
@@ -412,6 +419,15 @@ namespace TASCAR {
     std::string print(const std::string& delim = ", ");
     zyx_euler_t(double z_, double y_, double x_) : z(z_), y(y_), x(x_){};
     zyx_euler_t() : z(0), y(0), x(0){};
+    /// Return Euler transformation from position vector
+    inline void set_from_pos(TASCAR::pos_t pos)
+    {
+      x = 0.0;
+      y = -atan2(pos.z, pos.x);
+      pos.rot_y(-y);
+      z = atan2(pos.y, pos.x);
+    };
+
     /// rotation around z-axis in radians
     double z;
     /// rotation around y-axis in radians
@@ -419,6 +435,56 @@ namespace TASCAR {
     /// rotation around x-axis in radians
     double x;
   };
+
+  class rotmat_t {
+  public:
+    rotmat_t(){};
+    inline void set_from_euler(const zyx_euler_t& eul)
+    {
+      const auto cx = cos(eul.x), sx = sin(eul.x);
+      const auto cy = cos(eul.y), sy = sin(eul.y);
+      const auto cz = cos(eul.z), sz = sin(eul.z);
+      const auto cx_cz = cx * cz, cx_sz = cx * sz, sx_cz = sx * cz,
+                 sx_sz = sx * sz;
+      m11 = cy * cz;
+      m12 = -cy * sz;
+      m13 = sy;
+      m21 = cx_sz + sx * sy * cz;
+      m22 = cx_cz - sx * sy * sz;
+      m23 = -sx * cy;
+      m31 = sx_sz - cx * sy * cz;
+      m32 = sx_cz + cx * sy * sz;
+      m33 = cx * cy;
+    };
+    inline zyx_euler_t to_euler() const
+    {
+      zyx_euler_t eul;
+      eul.x = atan2(-m23, m33);
+      auto m132 = m13 * m13;
+      if(m132 < 0.9999999)
+        eul.y = atan2(m13, sqrt(1.0 - m132));
+      else
+        eul.y = copysign(TASCAR_PI2, m13);
+      eul.z = atan2(-m12, m11);
+      return eul;
+    };
+    double m11 = 1;
+    double m12 = 0;
+    double m13 = 0;
+    double m21 = 0;
+    double m22 = 1;
+    double m23 = 0;
+    double m31 = 0;
+    double m32 = 0;
+    double m33 = 1;
+  };
+
+  std::string to_string(const rotmat_t& m);
+
+  inline bool operator!=(const TASCAR::pos_t& p1, const TASCAR::pos_t& p2)
+  {
+    return (p1.x != p2.x) || (p1.y != p2.y) || (p1.z != p2.z);
+  }
 
   inline TASCAR::zyx_euler_t& operator*=(TASCAR::zyx_euler_t& self,
                                          const double& scale)
@@ -460,6 +526,16 @@ namespace TASCAR {
     self.rot_z(r.z);
     self.rot_y(r.y);
     self.rot_x(r.x);
+    return self;
+  };
+
+  inline TASCAR::pos_t& operator*=(TASCAR::pos_t& self,
+                                   const TASCAR::rotmat_t& r)
+  {
+    auto temp = self;
+    self.x = temp.x * r.m11 + temp.y * r.m12 + temp.z * r.m13;
+    self.y = temp.x * r.m21 + temp.y * r.m22 + temp.z * r.m23;
+    self.z = temp.x * r.m31 + temp.y * r.m32 + temp.z * r.m33;
     return self;
   };
 
@@ -801,7 +877,7 @@ namespace TASCAR {
       y = axis.y;
       z = axis.z;
     };
-    inline void set_euler(const zyx_euler_t& eul)
+    inline void set_euler_xyz(const zyx_euler_t& eul)
     {
       // Abbreviations for the various angular functions
       float cy = cosf((float)(eul.z) * 0.5f);
@@ -815,6 +891,24 @@ namespace TASCAR {
       y = cr * sp * cy + sr * cp * sy;
       z = cr * cp * sy - sr * sp * cy;
     };
+    inline void set_euler_zyx(const zyx_euler_t& eul)
+    {
+      set_rotation(eul.x, TASCAR::posf_t(1.0f, 0.0f, 0.0f));
+      quaternion_t q;
+      q.set_rotation(eul.y, TASCAR::posf_t(0.0f, 1.0f, 0.0f));
+      rmul(q);
+      q.set_rotation(eul.z, TASCAR::posf_t(0.0f, 0.0f, 1.0f));
+      rmul(q);
+    };
+    //inline void set_euler_xyz(const zyx_euler_t& eul)
+    //{
+    //  set_rotation(eul.z, TASCAR::posf_t(0.0f, 0.0f, 1.0f));
+    //  quaternion_t q;
+    //  q.set_rotation(eul.y, TASCAR::posf_t(0.0f, 1.0f, 0.0f));
+    //  rmul(q);
+    //  q.set_rotation(eul.x, TASCAR::posf_t(1.0f, 0.0f, 0.0f));
+    //  rmul(q);
+    //};
     inline quaternion_t inverse() const
     {
       return conjugate().scale(1.0f / norm());
@@ -851,9 +945,15 @@ namespace TASCAR {
                           w * q.y + y * q.w + z * q.x - x * q.z,
                           w * q.z + z * q.w + x * q.y - y * q.x);
     };
-    inline quaternion_t& operator*=(const quaternion_t& q)
+    inline quaternion_t& rmul(const quaternion_t& q)
     {
       quaternion_t tmp(*this * q);
+      *this = tmp;
+      return *this;
+    };
+    inline quaternion_t& lmul(const quaternion_t& q)
+    {
+      quaternion_t tmp(q * *this);
       *this = tmp;
       return *this;
     };
@@ -867,7 +967,7 @@ namespace TASCAR {
       *this = tmp;
       return *this;
     };
-    inline zyx_euler_t to_euler() const
+    inline zyx_euler_t to_euler_xyz() const
     {
       zyx_euler_t eul;
       // x-axis rotation
@@ -885,6 +985,21 @@ namespace TASCAR {
       float cosy_cosp(1.0f - 2.0f * (y * y + z * z));
       eul.z = atan2f(siny_cosp, cosy_cosp);
       return eul;
+    };
+    inline zyx_euler_t to_euler_zyx() const { return to_rotmat().to_euler(); };
+    inline rotmat_t to_rotmat() const
+    {
+      rotmat_t rm;
+      rm.m11 = 2.0 * (w * w + x * x) - 1.0;
+      rm.m12 = 2.0 * (x * y - w * z);
+      rm.m13 = 2.0 * (x * z + w * y);
+      rm.m21 = 2.0 * (x * y + w * z);
+      rm.m22 = 2.0 * (w * w + y * y) - 1.0;
+      rm.m23 = 2.0 * (y * z - w * x);
+      rm.m31 = 2.0 * (x * z - w * y);
+      rm.m32 = 2.0 * (y * z + w * x);
+      rm.m33 = 2.0 * (w * w + z * z) - 1.0;
+      return rm;
     };
   };
 

@@ -47,7 +47,7 @@
 	<p><strong>TASCAR</strong> is an open-source software platform
 	for real-time interactive virtual acoustic environment
 	rendering in laboratory environments, licensed
-	under <a href="https://github.com/gisogrimm/tascar/blob/master/COPYING">GPL-2.0</a>. The
+	under <a href="https://github.com/gisogrimm/tascar/blob/master/LICENSE">GPL-2.0</a>. The
 	source code is hosted
 	at <a href="https://github.com/HoerTech-gGmbH/tascar/">https://github.com/HoerTech-gGmbH/tascar/</a>. Binary
 	packages are provided by <a href="https://www.hz-ol.de/en/tascar.html">H&ouml;rzentrum Oldenburg
@@ -61,6 +61,38 @@
       </article>
       
       <h2>Latest news</h2><br/>
+
+      <time>December 9, 2022</time>
+      <h3>TASCAR 0.228.1 released</h3>
+      <p>Bugfix of loudspeaker calibration wizard: When
+        frequency-dependent speaker correction was active, the
+        broadband calibration is now measured with active speaker
+        correction.</p> <br/>
+
+      <time>November 28, 2022</time>
+      <h3>TASCAR 0.228 released</h3>
+      <p>Allow to use material names instead of filter coefficients in
+      reflectors. Some materials definitions are built into TASCAR,
+      more can be defined within a scene. Furthermore, the speaker
+      calibration uses now the more robust Nelder-Mead method for
+      optimization of parameteric equalizers.</p> <br/>
+
+      <time>September 29, 2022</time>
+      <h3>TASCAR 0.227.1 released</h3>
+      <p>This is a minor bugfix release to fix the behavior of the
+      sndfile plugin: The timeline-independent playback of sound files
+      did not work correctly when the file load was triggered via
+      OSC. This, and the documentation of the sndfile plugin, is
+      updated with this release.</p> <br/>
+
+      <time>September 25, 2022</time>
+      <h3>TASCAR 0.227 released</h3>
+      <p>The dataloggin supports a headless mode for command line
+      applications, improved handling of LSL streams and some other
+      improvements (e.g., support of datalogging on macOS). The GUI
+      was partly re-designed, and works again on macOS and
+      Windows. Head tracking with the <em>ovheadtracker</em> module
+      was improved further.</p> <br/>
 
       <time>May 28, 2022</time>
       <h3>TASCAR 0.226 released</h3>

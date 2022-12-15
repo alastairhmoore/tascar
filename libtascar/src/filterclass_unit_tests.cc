@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2019 Giso Grimm
  * Copyright (c) 2020 Giso Grimm
+ * Copyright (c) 2021 Giso Grimm
+ * Copyright (c) 2022 Giso Grimm
  */
 /*
  * TASCAR is free software: you can redistribute it and/or modify
@@ -100,10 +102,10 @@ TEST(biquadf_t, unitgain)
   EXPECT_EQ(0.0f, b.get_b2());
   EXPECT_EQ(0.0f, b.get_a1());
   EXPECT_EQ(0.0f, b.get_a2());
-  ASSERT_NEAR(1.0f, std::abs(b.response(0.0f * TASCAR_2PIf)), 1e-9f);
-  ASSERT_NEAR(1.0f, std::abs(b.response(0.25f * TASCAR_2PIf)), 1e-9f);
-  ASSERT_NEAR(1.0f, std::abs(b.response(0.5f * TASCAR_2PIf)), 1e-9f);
-  ASSERT_NEAR(1.0f, std::abs(b.response(0.75f * TASCAR_2PIf)), 1e-9f);
+  ASSERT_NEAR(1.0f, std::abs(b.response(0.0f * TASCAR_2PIf)), 1e-7f);
+  ASSERT_NEAR(1.0f, std::abs(b.response(0.25f * TASCAR_2PIf)), 1e-7f);
+  ASSERT_NEAR(1.0f, std::abs(b.response(0.5f * TASCAR_2PIf)), 1e-7f);
+  ASSERT_NEAR(1.0f, std::abs(b.response(0.75f * TASCAR_2PIf)), 1e-7f);
   ASSERT_NEAR(1.0f, b.filter(1.0f), 1e-9f);
   ASSERT_NEAR(1.0f, b.filter(1.0f), 1e-9f);
   ASSERT_NEAR(1.0f, b.filter(1.0f), 1e-9f);
@@ -136,10 +138,10 @@ TEST(biquadf_t, fresp)
 {
   TASCAR::biquadf_t b;
   b.set_gzp(1.0f, 1.0f, 0.0f, 0.5f, 0.5f * TASCAR_2PIf);
-  ASSERT_NEAR(0.0f, std::abs(b.response(0.0f * TASCAR_2PIf)), 1e-9f);
-  ASSERT_NEAR(0.25f, std::abs(b.response_a(0.5f * TASCAR_2PIf)), 1e-9f);
-  ASSERT_NEAR(4.0f, std::abs(b.response_b(0.5f * TASCAR_2PIf)), 1e-9f);
-  ASSERT_NEAR(16.0f, std::abs(b.response(0.5f * TASCAR_2PIf)), 1e-9f);
+  ASSERT_NEAR(0.0f, std::abs(b.response(0.0f * TASCAR_2PIf)), 1e-6f);
+  ASSERT_NEAR(0.25f, std::abs(b.response_a(0.5f * TASCAR_2PIf)), 1e-6f);
+  ASSERT_NEAR(4.0f, std::abs(b.response_b(0.5f * TASCAR_2PIf)), 1e-6f);
+  ASSERT_NEAR(16.0f, std::abs(b.response(0.5f * TASCAR_2PIf)), 1e-5f);
   ASSERT_NEAR(1.0f, b.filter(1.0f), 1e-9f);
   ASSERT_NEAR(-2.0f, b.filter(1.0f), 1e-9f);
   ASSERT_NEAR(1.75f, b.filter(1.0f), 1e-9f);
@@ -454,6 +456,37 @@ TEST(multiband_pareq_t, responseoptim)
   ASSERT_NEAR(gmeas[16], 1.42086f, 0.5f);
   ASSERT_NEAR(gmeas[17], 1.18439f, 0.5f);
   ASSERT_NEAR(gmeas[18], 0.953375f, 0.5f);
+}
+
+TEST(rflt2alpha, vals)
+{
+  std::vector<float> vfreq = {125.0f,  250.0f,  500.0f,
+                              1000.0f, 2000.0f, 4000.0f};
+  auto alpha = TASCAR::rflt2alpha(0.7709f, 0.21f, 44100.0f, vfreq);
+  ASSERT_EQ(6u, alpha.size());
+  if(alpha.size() == 6) {
+    ASSERT_NEAR(0.0525, alpha[0], 1e-4f);
+    ASSERT_NEAR(0.0525, alpha[1], 1e-4f);
+    ASSERT_NEAR(0.0528, alpha[2], 1e-4f);
+    ASSERT_NEAR(0.0537, alpha[3], 1e-4f);
+    ASSERT_NEAR(0.0573, alpha[4], 1e-4f);
+    ASSERT_NEAR(0.0713, alpha[5], 1e-4f);
+  }
+}
+
+TEST(alpha2rflt, vals)
+{
+  std::vector<float> vfreq = {125.0f,  250.0f,  500.0f,
+                              1000.0f, 2000.0f, 4000.0f};
+  std::vector<float> alpha = {0.0400f, 0.0400f, 0.0700f,
+                              0.0600f, 0.0600f, 0.0700f};
+  float reflectivity = 1.0f;
+  float damping = 0.5f;
+  // int err =
+  TASCAR::alpha2rflt(reflectivity, damping, alpha, vfreq, 44100.0f);
+  ASSERT_NEAR(0.7709, reflectivity, 1e-4f);
+  ASSERT_NEAR(0.21, damping, 2e-3f);
+  // ASSERT_EQ(0, err);
 }
 
 // Local Variables:

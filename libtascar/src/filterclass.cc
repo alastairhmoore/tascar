@@ -434,11 +434,11 @@ void TASCAR::biquad_t::set_pareq(double f, double fs, double gain, double q)
 void bilinear(std::vector<std::complex<double>>& poles, double& gain)
 {
   std::complex<double> prod_poles = 1.0;
-  for( const auto& p : poles )
+  for(const auto& p : poles)
     prod_poles *= (1.0 - p);
   gain = std::real(gain / prod_poles);
-  for( auto& p : poles )
-    p = (1.0+p)/(1.0-p);
+  for(auto& p : poles)
+    p = (1.0 + p) / (1.0 - p);
 }
 
 void bilinearf(std::vector<std::complex<float>>& poles, float& gain)
@@ -611,7 +611,8 @@ float TASCAR::multiband_pareq_t::optim_error_fun(const std::vector<float>& par)
 
 std::vector<float> TASCAR::multiband_pareq_t::optim_response(
     size_t numflt, float maxq, const std::vector<float>& vF,
-    const std::vector<float>& vG, float fs, size_t numiter)
+    const std::vector<float>& vG, float fs, size_t numiter,
+    bool use_nelder_mead)
 {
   if(numflt < 1)
     throw TASCAR::ErrMsg(
@@ -695,17 +696,21 @@ std::vector<float> TASCAR::multiband_pareq_t::optim_response(
     par[3 * k + 3] = 0.5f;
   }
   optimpar2fltsettings(par, fs);
-  float err = 10000000.0f;
-  float eps = 1.0f;
-  for(size_t k = 0; k < numiter; ++k) {
-    float nerr = downhill_iterate(eps, par, mbeqerrfun, this, step);
-    if(nerr > err)
-      eps *= 0.5f;
-    if(fabsf(nerr / err - 1.0f) < 1e-7f)
-      k = numiter;
-    err = nerr;
-    if(err < 0.01f)
-      k = numiter;
+  if(use_nelder_mead) {
+    TASCAR::nelmin(par, mbeqerrfun, par, 0.1f, step, 2, numiter, this);
+  } else {
+    float err = 10000000.0f;
+    float eps = 1.0f;
+    for(size_t k = 0; k < numiter; ++k) {
+      float nerr = downhill_iterate(eps, par, mbeqerrfun, this, step);
+      if(nerr > err)
+        eps *= 0.5f;
+      if(fabsf(nerr / err - 1.0f) < 1e-7f)
+        k = numiter;
+      err = nerr;
+      if(err < 0.01f)
+        k = numiter;
+    }
   }
   optimpar2fltsettings(par, fs, false);
   return dbresponse(vF, fs);
@@ -736,6 +741,68 @@ std::string TASCAR::multiband_pareq_t::to_string() const
           "];\ng=[" + TASCAR::to_string(flt_g) + "];\nq=[" +
           TASCAR::to_string(flt_q) + "];\n";
   return retv;
+}
+
+std::vector<float> TASCAR::rflt2alpha(float reflectivity, float damping,
+                                      float fs, const std::vector<float>& freq)
+{
+  std::vector<float> retv;
+  reflectivity = std::max(std::min(reflectivity, 1.0f), EPSf);
+  damping = std::max(std::min(damping, 1.0f - EPSf), -1.0f + EPSf);
+  for(auto f : freq) {
+    auto cw = std::exp(-i_f * TASCAR_2PIf * f / fs);
+    auto H = std::abs(reflectivity * (1.0f - damping) / (1.0f - damping * cw));
+    auto alpha = std::pow(1 - H, 2.0f);
+    retv.push_back(alpha);
+  }
+  return retv;
+}
+
+struct optimpar_t {
+  std::vector<float> alpha;
+  std::vector<float> freq;
+  float fs;
+};
+
+float absorptionerror(const std::vector<float>& vPar, void* data)
+{
+  optimpar_t* pOpt = (optimpar_t*)data;
+  auto d = exp(-vPar[0] * vPar[0]);
+  auto r = exp(-vPar[1] * vPar[1]);
+  auto alphatest = TASCAR::rflt2alpha(r, d, pOpt->fs, pOpt->freq);
+  float e = 0.0f;
+  for(size_t k = 0; k < std::min(alphatest.size(), pOpt->alpha.size()); ++k) {
+    auto a2 = (pOpt->alpha[k] - alphatest[k]);
+    a2 *= a2;
+    e += a2;
+  }
+  e /= pOpt->alpha.size();
+  if((d > 1.0f) || (d < 0.0f))
+    e = 1e6f;
+  return e;
+}
+
+int TASCAR::alpha2rflt(float& reflectivity, float& damping,
+                       const std::vector<float>& alpha,
+                       const std::vector<float>& freq, float fs,
+                       uint32_t numiter)
+{
+  if(alpha.empty())
+    throw TASCAR::ErrMsg(
+        "Invalid alpha coefficients in reflection filter (empty)");
+  if(alpha.size() != freq.size())
+    throw TASCAR::ErrMsg(
+        "Different number of alpha coefficients and frequencies: alpha has " +
+        std::to_string(alpha.size()) + " coefficients, freq has " +
+        std::to_string(freq.size()) + " entries.");
+  optimpar_t optpar = {alpha, freq, fs};
+  std::vector<float> par = {0.5f, 0.5f};
+  std::vector<float> step = {0.1f, 0.1f};
+  int err = TASCAR::nelmin(par, absorptionerror, par, 0.02f, step, 2, numiter,
+                           &optpar);
+  damping = exp(-par[0] * par[0]);
+  reflectivity = exp(-par[1] * par[1]);
+  return err;
 }
 
 /*

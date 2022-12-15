@@ -719,6 +719,17 @@ Relative file names are relative to the directory containing the root
 % startup, or they should be relative to the file containing the
 % respective <include> element.
 
+The performance of all loaded modules\index{profiler} can be measured
+by setting the attribute \attr{profilingpath} to an OSC path, which
+can be added to the datalogging module, see Example
+\ref{tsc:example_profiling}. In that case, the profiling variable
+contains the time used by the modules in each processing cycles. The
+\attr{size} attribute of the OSC variable in the data logging needs to
+match the total number of modules loaded in a session (multiple
+\elem{modules} sections will be merged).
+
+\tscexample{example_profiling}
+
 \subsection{The {\tt <scene>...</scene>} element}\label{sec:scene}\index{scene}
 
 \input{tabscene.tex}
@@ -726,7 +737,7 @@ Relative file names are relative to the directory containing the root
 \begin{tscelements}
 \refelem{source}, \refelem{receiver},
 \refelem{diffuse}, \refelem{face}, \refelem{facegroup},
-\refelem{obstacle}, \elem{description}
+\refelem{obstacle}, \elem{description}, \refelem{material}
 \end{tscelements}
 
 \elem{scene} is a top-level element of a \tascar{} scene
@@ -1389,38 +1400,29 @@ definitions.
 
 \subsection{Adding diffuse reverberation: {\tt <reverb .../>}}\label{sec:reverbelem}
 
-Diffuse reverberation can be added with the \elem{reverb} element. The
-reverb plugin type is provided with the \attr{type} attribute, which
-can be any of the types listed below.
+To generate diffuse reverberation in TASCAR, signal components from the image source model must be transferred to the diffuse sound field model. There are two options for this: Either external reverberation generators can be used, which receive their input signals via JACK and also reproduce the reverberation signal in Ambisonics format via JACK. For this, a \elem{receiver} must be used to transmit from the image source model to the external reverberation module, and a diffuse sound field (\elem{diffuse}) must be used to transmit from the external reverberation module to TASCAR.  Another option is to use the TASCAR internal reverberation generators. In this method, the \elem{reverb} element combines both the receiver and the diffuse sound field into a single object. The type of the reverb plugin is specified with the \attr{type} attribute, which can be any of the types listed below. Diffuse sources do not contribute to diffuse reverberation.
 
-Under the hood, the \elem{reverb} element combines a dedicated
-receiver with a diffuse sound field. Therefore, most common attributes
-of receivers (see \ref{sec:receiver}) can be used here as well.
-%
-To create diffuse reverberation with external convolution or
-algorithmic reverb tools connected via jack, you may use a receiver
-plugin, set the \attr{volumetric} attribute, and add a diffuse sound
-field using the same position, orientation and dimension as the
-volumetric receiver.
+Both methods have in common that the receiver does not follow the normal distance laws, but renders all sources within a given volume with equal gains and delays. This is achieved by the attribute \attr{volumetric}; this attribute defines the shoebox-shaped volume in which sound sources contribute to the reverberation.
 
-A very basic FDN and a partitioned convolution module are provided as
-part of \tascar{}. An example of diffuse reverberation using the
-``simplefdn'' plugin looks like this:
+Under the hood, the \elem{reverb} element combines a dedicated receiver with a diffuse sound field. Therefore, most common attributes of receivers (see \ref{sec:receiver}) can be used here as well.  To create diffuse reverberation with external convolution or algorithmic reverb tools connected via jack, you may use a receiver plugin, set the \attr{volumetric} attribute, and add a diffuse sound field using the same position, orientation and dimension as the volumetric receiver.
+
+A very basic FDN and a partitioned convolution module are provided as part of \tascar{}. An example of diffuse reverberation using the ``simplefdn'' plugin looks like this:
 %
 \tscexample[linerange={35-37},firstnumber=35]{example_diffreverbnew}
 %
-The attribute ``volumetric'' defines the shoe-box shaped volume in
-which sound sources are rendered. Diffuse sources do not contribute to
-diffuse reverberation.
+The attribute ``volumetric'' defines the shoe-box shaped volume in which sound sources are rendered.
 
-Reverb receivers have the attribute \attr{layers}, which defines the
-layers in which the receiver receives sound, and \attr{outputlayers},
-which defines the layers in which the diffuse sound field is
-reproduced.
+Reverb receivers have the attribute \attr{layers}, which defines the layers in which the receiver receives sound, and \attr{outputlayers}, which defines the layers in which the diffuse sound field is reproduced.
+
+\input{tabreverb.tex}
 
 \input{secrecreverb.tex}
 
 \subsection{Reflectors: {\tt <face .../>} and {\tt <facegroup .../>} elements}\label{sec:face}\label{sec:facegroup}\index{face}\index{facegroup}
+
+TASCAR uses a geometric image source model. Primary sound sources can be mirrored at reflectors if they meet the visibility criteria: The primary sound source must be in the direction of the face normal of the reflector, and the closest point between the plane defined by the reflector and the sound source must be within the surface boundary, or edge diffraction must be enabled for the reflectors.
+
+The audio signal from the image sound source is a filtered copy of the signal from the primary sound source. The reflection filters are determined by the material properties, and can be specified either in terms of filter coefficients or as a material definition with frequency-dependent absorption coefficients, see below.
 
 The \elem{face} element defines a single reflecting surface.
 
@@ -1445,6 +1447,36 @@ The \elem{facegroup} element creates a group of polygon reflectors,
 with common reflection properties.
 
 \input{tabfacegroup.tex}
+
+Reflection properties can be defined either by explicitely setting the
+reflection filter coefficients \attr{damping} and \attr{reflectivity},
+or by selecting a material, previously defined within in the scene
+using the \elem{material} element:
+
+\input{tabmaterial.tex}
+
+Some basic material definitions are built into TASCAR, see Table \ref{tab:materials}.
+
+\begin{table}[htb]
+
+  \caption{Absorption coefficients of built-in material definitions.}\label{tab:materials}
+  
+  {\small
+    \centerline{\begin{tabular}{lcccccc}
+        \hline
+        name                 & 125~Hz & 250~Hz & 500~Hz & 1~kHz & 2~kHz & 4~kHz \\
+        \hline
+        parquet              & 0.04   & 0.04   & 0.07   & 0.06  & 0.06  & 0.07  \\
+        window               & 0.35   & 0.25   & 0.18   & 0.12  & 0.07  & 0.04  \\
+        concrete             & 0.36   & 0.44   & 0.31   & 0.29  & 0.39  & 0.25  \\
+        acoustic\_tiles      & 0.05   & 0.22   & 0.52   & 0.56  & 0.45  & 0.32  \\
+        plaster              & 0.013  & 0.015  & 0.02   & 0.03  & 0.04  & 0.05  \\
+        carpet\_on\_concrete & 0.02   & 0.06   & 0.14   & 0.37  & 0.60  & 0.65  \\
+        metal\_8mm           & 0.50   & 0.35   & 0.15   & 0.05  & 0.05  & 0.00  \\
+        \hline
+    \end{tabular}}
+  }
+\end{table}
 
 Element \elem{facegroup} behaves also as an object, since it also has
 a position and orientation in space.
@@ -1627,6 +1659,16 @@ configuration within the \elem{plugins} section. For sound vertices,
 they are processed before the sound is handed to the acoustic
 model. For receivers, audio plugins are processed after the post
 processing function of the render format.
+
+To profile the plugin performance\index{profiler}, it is possible to
+set the attribute \attr{profilingpath} to an OSC path that can be
+recorded using the datalogging plugin. The \attr{size} attribute of
+the OSC variable in the datalogging must match the number of plugins,
+see Example \ref{tsc:example_profiling} in the \elem{session} section.
+The data contains the time spent in each processing cycle in seconds,
+for each plugin. Please note that the clock granularity is one
+microsecond on Linux machines.
+
 
 \input{secapmodules.tex}
 

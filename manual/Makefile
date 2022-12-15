@@ -44,7 +44,8 @@ version.tex:
 	echo $(FULLVERSION) > $@
 
 autodoc.txt: documentation.tsc $(wildcard ../*/build/*)
-	rm -f tab*.tex;LD_LIBRARY_PATH=../libtascar/build/:../plugins/build/ ../apps/build/tascar_validatetsc -l -g $< > $@ && cat $@ || (cat $@; false)
+	rm -f tab*.tex;LD_LIBRARY_PATH=../libtascar/build/:../plugins/build/ ../apps/build/tascar_validatetsc -l -g $< > $@
+#&& cat $@ || (cat $@; false)
 
 checkusetab: autodoc.txt
 	for i in tab*.tex; do echo "\input{$$i}"; grep -q -e $$i *.tex || exit 1; done
@@ -171,4 +172,4 @@ cli_%.tex: ../apps/build/tascar_% Makefile
 
 
 modtabs:
-	(export LD_LIBRARY_PATH="../libtascar/build/:../plugins/build/";export TASCARGENDOC="true";../gui/build/tascar documentation.tsc)
+	jackd -d dummy & PID=$$!; sleep 1;(export LD_LIBRARY_PATH="../libtascar/build/:../plugins/build/";export TASCARGENDOC="true";../gui/build/tascar documentation.tsc);kill -9 $$PID

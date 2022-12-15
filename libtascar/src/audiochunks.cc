@@ -309,19 +309,20 @@ void amb1wave_t::add_panned(pos_t p, const wave_t& v, float g)
   z_.add(v, g * p.z);
 }
 
-SF_INFO sndfile_handle_t::sf_info_configurator(int samplerate, int channels)
+SF_INFO sndfile_handle_t::sf_info_configurator(int samplerate, int channels,
+                                               int format)
 {
   SF_INFO inf;
   memset(&inf, 0, sizeof(inf));
   inf.samplerate = samplerate;
   inf.channels = channels;
-  inf.format = SF_FORMAT_WAV | SF_FORMAT_FLOAT;
+  inf.format = format;
   return inf;
 }
 
 sndfile_handle_t::sndfile_handle_t(const std::string& fname, int samplerate,
-                                   int channels)
-    : sf_inf(sf_info_configurator(samplerate, channels)),
+                                   int channels, int format)
+    : sf_inf(sf_info_configurator(samplerate, channels, format)),
       sfile(sf_open(TASCAR::env_expand(fname).c_str(), SFM_WRITE, &sf_inf))
 {
   if(!sfile)
@@ -511,6 +512,21 @@ void wave_t::resample(double ratio)
   rmsscale = 1.0f / (float)n;
 }
 
+void wave_t::make_loopable(uint32_t fadelen, float crossexp)
+{
+  if(2 * fadelen > n)
+    throw TASCAR::ErrMsg(
+        "Cannot make loopable sound sample: Fadelen needs to "
+        "be less or equal than half of the number of samples (fadelen: " +
+        std::to_string(fadelen) + ", n: " + std::to_string(n) + ").");
+  for(uint32_t k = 0; k < fadelen; ++k) {
+    float w = 0.5f + 0.5f * cosf((float)k / (float)fadelen * TASCAR_PIf);
+    w = powf(w, crossexp);
+    d[k] = (1.0f - w) * d[k] + w * d[n - fadelen + k];
+  }
+  n -= fadelen;
+}
+
 amb1rotator_t::amb1rotator_t(uint32_t chunksize)
     : amb1wave_t(chunksize), wxx(1), wxy(0), wxz(0), wyx(0), wyy(1), wyz(0),
       wzx(0), wzy(0), wzz(1), dt(1.0 / (double)chunksize)
@@ -688,6 +704,54 @@ void sndfile_t::resample(double ratio)
   wave_t::resample(ratio);
   sf_inf.frames *= ratio;
   sf_inf.samplerate *= ratio;
+}
+
+void sndfile_t::make_loopable(uint32_t fadelen, float crossexp)
+{
+  wave_t::make_loopable(fadelen, crossexp);
+  sf_inf.frames -= fadelen;
+}
+
+void TASCAR::audiowrite(const std::string& name,
+                        const std::vector<TASCAR::wave_t>& y, float fs,
+                        int format)
+{
+  sndfile_handle_t sfh(name, fs, y.size(), format);
+  uint32_t nframes = 1u;
+  for(const auto& s : y)
+    nframes = std::max(nframes, s.n);
+  float* buf = new float[nframes * y.size()];
+  memset(buf, 0, sizeof(float) * nframes * y.size());
+  size_t nch = y.size();
+  size_t ch = 0;
+  for(const auto& s : y) {
+    for(uint32_t k = 0; k < s.n; ++k)
+      buf[ch + nch * k] = s.d[k];
+    ++ch;
+  }
+  sfh.writef_float(buf, nframes);
+  delete[] buf;
+}
+
+std::vector<TASCAR::wave_t> TASCAR::audioread(const std::string& name,
+                                              float& fs)
+{
+  sndfile_handle_t sfh(name);
+  const auto nframes = sfh.get_frames();
+  const auto nchannels = sfh.get_channels();
+  const auto nfrch = nframes * nchannels;
+  float* buf = new float[nfrch];
+  memset(buf, 0, sizeof(float) * nfrch);
+  sfh.readf_float(buf, nframes);
+  std::vector<TASCAR::wave_t> r;
+  for(uint32_t ch = 0; ch < nchannels; ++ch) {
+    r.push_back(TASCAR::wave_t(nframes));
+    for(uint32_t k = 0; k < nframes; ++k)
+      r[ch].d[k] = buf[ch + nchannels * k];
+  }
+  delete[] buf;
+  fs = sfh.get_srate();
+  return r;
 }
 
 /*

@@ -159,8 +159,12 @@ namespace TASCAR {
     uint32_t get_total_diffuse_sound_fields() const;
     std::vector<TASCAR::named_object_t>
     find_objects(const std::string& pattern);
+    std::vector<TASCAR::named_object_t>
+    find_objects(const std::vector<std::string>& pattern);
     std::vector<TASCAR::Scene::audio_port_t*>
     find_audio_ports(const std::vector<std::string>& pattern);
+    std::vector<TASCAR::Scene::audio_port_t*>
+    find_route_ports(const std::vector<std::string>& pattern);
     std::vector<TASCAR::scene_render_rt_t*> scenes;
     std::vector<TASCAR::range_t*> ranges;
     std::vector<TASCAR::connection_t*> connections;
@@ -198,6 +202,9 @@ namespace TASCAR {
     std::map<std::string, TASCAR::Scene::src_object_t*> sourcemap;
     std::map<std::string, TASCAR::Scene::receiver_obj_t*> receivermap;
     //
+    TASCAR::tictoc_t tictoc;
+    lo_message profilermsg;
+    lo_arg** profilermsgargv;
   };
 
   /// Control 'actors' in a scene

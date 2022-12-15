@@ -26,8 +26,6 @@
 
 #include "serialport.h"
 
-const std::complex<double> i = {0.0, 1.0};
-
 class ovheadtracker_t : public TASCAR::actor_module_t,
                         protected TASCAR::service_t {
 public:
@@ -45,7 +43,14 @@ protected:
 private:
   // configuration variables:
   std::string name;
-  std::vector<std::string> devices;
+#ifdef ISMACOS
+  std::vector<std::string> devices = {"/dev/tty.usbserial-0001",
+                                      "/dev/tty.usbserial-0002",
+                                      "/dev/tty.usbserial-0003"};
+#else
+  std::vector<std::string> devices = {"/dev/ttyUSB0", "/dev/ttyUSB1",
+                                      "/dev/ttyUSB2"};
+#endif
   // data logging OSC url:
   std::string url;
   // rotation OSC url:
@@ -94,6 +99,7 @@ private:
   // level meter paths:
   std::vector<std::string> vpath;
   TASCAR::quaternion_t qstate;
+  TASCAR::tictoc_t tictoc;
 };
 
 void ovheadtracker_t::configure()
@@ -138,11 +144,10 @@ void ovheadtracker_t::release()
 }
 
 ovheadtracker_t::ovheadtracker_t(const TASCAR::module_cfg_t& cfg)
-    : actor_module_t(cfg), name("ovheadtracker"),
-      devices({"/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2"}), ttl(1),
-      calib0path("/calib0"), calib1path("/calib1"), axes({0, 1, 2}),
-      accscale(16384 / 9.81), gyrscale(16.4), target(NULL), rottarget(NULL),
-      bcalib(false), qref(1, 0, 0, 0), run_service_level(true)
+    : actor_module_t(cfg), name("ovheadtracker"), ttl(1), calib0path("/calib0"),
+      calib1path("/calib1"), axes({0, 1, 2}), accscale(16384 / 9.81),
+      gyrscale(16.4), target(NULL), rottarget(NULL), bcalib(false),
+      qref(1, 0, 0, 0), run_service_level(true)
 {
   GET_ATTRIBUTE(name, "", "Prefix in OSC control variables");
   GET_ATTRIBUTE(devices, "", "List of serial port device candidates");
@@ -226,7 +231,7 @@ void ovheadtracker_t::add_variables(TASCAR::osc_server_t* srv)
   srv->add_bool(p + "/apply_rot", &apply_rot,
                 "Apply rotation based on gyroscope and accelerometer");
   srv->add_bool_true(p + "/reset", &first_sample_autoref,
-                "Reset auto-referencing state");
+                     "Reset auto-referencing state");
 }
 
 /**
@@ -238,13 +243,23 @@ void ovheadtracker_t::add_variables(TASCAR::osc_server_t* srv)
 void parse_devstring(std::string& l, std::vector<double>& data,
                      size_t num_elements)
 {
-  l = l.substr(1);
-  std::string::size_type sz;
-  for(size_t k = 0; k < std::min(data.size(), num_elements); ++k) {
-    data[k] = std::stod(l, &sz);
-    if(sz < l.size())
-      l = l.substr(sz + 1);
+  size_t cnt = 0;
+  auto odata = data;
+  try {
+    l = l.substr(1);
+    std::string::size_type sz;
+    for(size_t k = 0; k < std::min(data.size(), num_elements); ++k) {
+      data[k] = std::stod(l, &sz);
+      ++cnt;
+      if(sz < l.size())
+        l = l.substr(sz + 1);
+    }
   }
+  catch(...) {
+    data = odata;
+  }
+  if(cnt != num_elements)
+    data = odata;
   for(size_t k = num_elements; k < data.size(); ++k)
     data[k] = 0.0;
 }
@@ -256,18 +271,28 @@ void parse_devstring(std::string& l, std::vector<double>& data,
  */
 void parse_devstring(std::string& l, TASCAR::quaternion_t& q)
 {
-  l = l.substr(1);
-  std::string::size_type sz;
-  q.w = std::stod(l, &sz);
-  if(sz < l.size())
-    l = l.substr(sz + 1);
-  q.x = std::stod(l, &sz);
-  if(sz < l.size())
-    l = l.substr(sz + 1);
-  q.y = std::stod(l, &sz);
-  if(sz < l.size())
-    l = l.substr(sz + 1);
-  q.z = std::stod(l, &sz);
+  bool ok = false;
+  auto oq = q;
+  try {
+    l = l.substr(1);
+    std::string::size_type sz;
+    q.w = std::stod(l, &sz);
+    if(sz < l.size())
+      l = l.substr(sz + 1);
+    q.x = std::stod(l, &sz);
+    if(sz < l.size())
+      l = l.substr(sz + 1);
+    q.y = std::stod(l, &sz);
+    if(sz < l.size())
+      l = l.substr(sz + 1);
+    q.z = std::stod(l, &sz);
+    ok = true;
+  }
+  catch(...) {
+    q = oq;
+  }
+  if(!ok)
+    q = oq;
 }
 
 void ovheadtracker_t::service()
@@ -291,11 +316,14 @@ void ovheadtracker_t::service()
     try {
       TASCAR::serialport_t dev;
       dev.open(devices[devidx].c_str(), B115200, 0, 1);
+      tictoc.tic();
       first_sample_autoref = true;
       first_sample_smooth = true;
+      bool firstgyrsmooth = true;
       while(run_service) {
         std::string l(dev.readline(1024, 10));
         if(l.size()) {
+          // std::cout << l << std::endl;
           switch(l[0]) {
           case 'A': {
             // acceleration
@@ -371,21 +399,30 @@ void ovheadtracker_t::service()
             }
             if((smooth > 0) && combinegyr) {
               TASCAR::quaternion_t qhp;
-              qhp.set_euler(rotgyr);
-              q *= qhp;
+              qhp.set_euler_zyx(rotgyr);
+              q.rmul(qhp);
             }
-            if(!autoref_zonly)
-              q *= qref;
+            if(!autoref_zonly) {
+              q.lmul(qref);
+            } else {
+              auto euref = qref.to_euler_zyx();
+              euref.y = euref.x = 0.0;
+              TASCAR::quaternion_t qrefz;
+              qrefz.set_euler_zyx(euref);
+              q.lmul(qrefz);
+              // o0.z = std::arg(std::exp(i * (o0.z + euref.z)));
+            }
             // store Euler orientation for processing in TASCAR:
-            o0 = q.to_euler();
-            if(autoref_zonly) {
-              auto euref = qref.to_euler();
-              o0.z = std::arg(std::exp(i * (o0.z + euref.z)));
-            }
+            o0 = q.to_euler_zyx();
+            // if(autoref_zonly) {
+            //  auto euref = qref.to_euler_zyx();
+            //  o0.z = std::arg(std::exp(i * (o0.z + euref.z)));
+            //}
             // send Quaternion for data logging or remote processing
             if(target) {
               lo_send(target, (p + "/quaternion").c_str(), "ffff", q.w, q.x,
                       q.y, q.z);
+              lo_send(target, (p + "/alive").c_str(), "f", tictoc.toc());
             }
             if(tilttarget) {
               // calculate tilt in any direction, for effect control:
@@ -418,10 +455,15 @@ void ovheadtracker_t::service()
             rotgyr.y = DEG2RAD * data[1];
             rotgyr.x = DEG2RAD * data[0];
             if(smooth > 0) {
-              rotgyrmean *= (1.0 - smooth);
-              TASCAR::zyx_euler_t scaledrotgyr = rotgyr;
-              scaledrotgyr *= smooth;
-              rotgyrmean += scaledrotgyr;
+              if(firstgyrsmooth) {
+                rotgyrmean = rotgyr;
+                firstgyrsmooth = false;
+              } else {
+                rotgyrmean *= (1.0 - smooth);
+                TASCAR::zyx_euler_t scaledrotgyr = rotgyr;
+                scaledrotgyr *= smooth;
+                rotgyrmean += scaledrotgyr;
+              }
               rotgyr -= rotgyrmean;
             }
             if(target && (!send_only_quaternion)) {

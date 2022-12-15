@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<session license="CC0">
+  <scene/>
+  <modules>
+    <echoc autoreconnect="true"/>
+  </modules>
+</session>

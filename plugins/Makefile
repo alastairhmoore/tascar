@@ -13,29 +13,31 @@ RECEIVERS = omni nsp amb3h0v amb3h3v amb1h0v amb1h1v cardioid hann	\
 
 SOURCES = omni cardioidmod door generic1storder farsrc head
 
-TASCARMODS = system pos2osc sampler pendulum epicycles motionpath	\
-  foa2hoadiff route oscevents oscjacktime ltcgen nearsensor dirgain	\
-  dummy matrix hoafdnrot mpu6050track touchosc savegains hrirconv	\
-  hossustain rotator orientationmodulator locationmodulator		\
-  locationvelocity granularsynth fail waitforjackport sleep jackrec	\
-  oscserver oscrelay
+TASCARMODS = system pos2osc sampler pendulum epicycles motionpath			\
+  foa2hoadiff route oscevents oscjacktime ltcgen nearsensor dirgain		\
+  dummy matrix hoafdnrot mpu6050track touchosc savegains hrirconv			\
+  hossustain rotator orientationmodulator locationmodulator						\
+  locationvelocity granularsynth fail waitforjackport sleep jackrec		\
+  oscserver oscrelay echoc snapangle lightctl oscactor ovheadtracker	\
+  oscheadtracker
 
 TASCARMODSGUI = tracegui simplecontroller timedisplay geopresets	\
-  transportgui lightcolorpicker
+  transportgui lightcolorpicker datalogging
 
 AUDIOPLUGINS = delay dummy gate hannenv identity lipsync		\
   lipsync_paper lookatme metronome onsetdetector sine sndfile spksim	\
   gainramp pulse pink dumplevels feedbackdelay bandpass filter		\
   level2osc const noise loopmachine pos2osc gain sndfileasync		\
-  addchannel tubesim spkcalib
+  addchannel tubesim spkcalib sessiontime flanger timestamp		\
+  burglatticelpc
 
 MASKPLUGINS = fig8 multibeam
 
 ifneq ($(OS),Windows_NT)
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-  TASCARMODS += lightctl midicc2osc midictl joystick qualisystracker	\
-  ovheadtracker
+  TASCARMODS += midicc2osc midictl joystick qualisystracker	\
+#  ovheadtracker
 endif
 endif
 
@@ -51,9 +53,10 @@ endif
 
 
 ifeq "$(HAS_LSL)" "yes"
+CXXFLAGS += -DHAS_LSL
 TASCARMODS += lsljacktime lslactor levels2osc pos2lsl
 AUDIOPLUGINS += speechactivity periodogram
-TASCARMODSGUI += datalogging glabsensors waitforlslstream
+TASCARMODSGUI += glabsensors waitforlslstream
 GLABSENSORS += smiley eog emergency espheadtracker midicc	\
   qualisys jackstatus serial oscthreshold
 endif
@@ -127,7 +130,10 @@ build/$(PLUGINPREFIX)tascar_ap_lipsync_paper$(DLLEXT): LDLIBS+=-lfftw3f
 build/$(PLUGINPREFIX)tascar_ap_openmha$(DLLEXT): LDLIBS+=-lopenmha
 build/$(PLUGINPREFIX)tascar_ap_periodogram$(DLLEXT): LDLIBS+=-llsl
 build/$(PLUGINPREFIX)tascar_ap_speechactivity$(DLLEXT): LDLIBS+=-llsl
-build/$(PLUGINPREFIX)tascar_datalogging$(DLLEXT): LDLIBS += -lmatio -llsl
+build/$(PLUGINPREFIX)tascar_datalogging$(DLLEXT): LDLIBS += -lmatio
+ifeq "$(HAS_LSL)" "yes"
+build/$(PLUGINPREFIX)tascar_datalogging$(DLLEXT): LDLIBS += -llsl
+endif
 build/$(PLUGINPREFIX)tascar_datalogging$(DLLEXT): build/datalogging_glade.h
 build/$(PLUGINPREFIX)tascar_hossustain$(DLLEXT): EXTERNALS += fftw3f
 build/$(PLUGINPREFIX)tascar_lightctl$(DLLEXT) build/$(PLUGINPREFIX)tascar_ovheadtracker$(DLLEXT): LDLIBS+=$(TASCARDMXLIB)

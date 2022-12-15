@@ -217,18 +217,18 @@ void TASCAR::generate_plugin_documentation_tables(bool latex)
   std::map<std::string, std::set<std::string>> parentchildren;
   make_common(parentchildren, attribute_list, categories["receiver"],
               "receiver");
-  make_common(parentchildren, attribute_list, categories["reverb"], "receiver");
+  make_common(parentchildren, attribute_list, categories["reverb"], "reverb");
   make_common(parentchildren, attribute_list, categories["sound"], "sound");
   make_common(parentchildren, attribute_list,
               {"receiver", "source", "diffuse", "facegroup", "face",
-               "boundingbox", "obstacle", "mask"},
+               "boundingbox", "obstacle", "mask", "reverb"},
               "objects");
   make_common(parentchildren, attribute_list,
               {"receiver", "source", "diffuse", "facegroup", "face", "mask",
-               "obstacle"},
+               "obstacle", "reverb"},
               "routes");
-  make_common(parentchildren, attribute_list, {"receiver", "sound", "diffuse"},
-              "ports");
+  make_common(parentchildren, attribute_list,
+              {"receiver", "sound", "diffuse"}, "ports");
   make_common(parentchildren, attribute_list,
               {"receiverhann", "receiverhoa3d", "receiverhoa2d",
                "receivervbap3d", "receivervbap", "receivernsp", "receiverwfs"},
@@ -283,7 +283,7 @@ void TASCAR::generate_plugin_documentation_tables(bool latex)
         fh << "\\indattr{" << tolatex(attr.first) << "} & "
            << tolatex(attr.second.info) << " (" << tolatex(attr.second.type);
         if(!attr.second.unit.empty())
-          fh << ", " << attr.second.unit;
+          fh << ", " << tolatex(attr.second.unit);
         fh << ") ";
         std::string sdef(tolatex(attr.second.defaultval));
         if(sdef.size() > 24)
@@ -566,6 +566,17 @@ std::string TASCAR::to_string(const std::vector<int>& value)
   std::stringstream s;
   for(std::vector<int>::const_iterator i_vert = value.begin();
       i_vert != value.end(); ++i_vert) {
+    if(i_vert != value.begin())
+      s << " ";
+    s << *i_vert;
+  }
+  return s.str();
+}
+
+std::string TASCAR::to_string(const std::vector<uint32_t>& value)
+{
+  std::stringstream s;
+  for(auto i_vert = value.begin(); i_vert != value.end(); ++i_vert) {
     if(i_vert != value.begin())
       s << " ";
     s << *i_vert;
